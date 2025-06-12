@@ -1,5 +1,6 @@
 flask
 pandas
+dash
 numpy
 plotly
 flask_failsafe
