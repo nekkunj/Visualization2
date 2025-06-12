@@ -5,3 +5,4 @@ numpy
 plotly
 flask_failsafe
 dash_bootstrap_components
+setuptools
