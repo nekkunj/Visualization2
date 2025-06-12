@@ -2,7 +2,7 @@
     Contains the server to run our application.
 '''
 from flask_failsafe import failsafe
-
+import os
 
 @failsafe
 def create_app():
@@ -18,4 +18,5 @@ def create_app():
 
 
 if __name__ == "__main__":
-    create_app().run(port="8050", debug=True)
+    port = int(os.environ.get("PORT", 8050))  # <-- use Heroku's port
+    create_app().run(host="0.0.0.0", port=port, debug=True)
