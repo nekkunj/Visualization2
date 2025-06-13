@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 
 # Chargement et nettoyage des données
 
-url = "https://raw.githubusercontent.com/nekkunj/Visualization2/9806e2c16dc395657aabbea51bd1774d9eef5567/assets/data_fusionnee_original.csv"
+url = 'assets/data_fusionnee.csv'
 df = pd.read_csv(url)
 df.columns = df.columns.str.strip().str.replace('"', '')
 df = df.rename(columns=lambda x: x.strip())
