@@ -4,7 +4,9 @@ import plotly.express as px
 import plotly.graph_objs as go
 
 # Chargement et nettoyage des données
-df = pd.read_csv('assets/data_fusionnee.csv')
+
+url = 'assets/data_fusionnee.csv'
+df = pd.read_csv(url)
 df.columns = df.columns.str.strip().str.replace('"', '')
 df = df.rename(columns=lambda x: x.strip())
 
