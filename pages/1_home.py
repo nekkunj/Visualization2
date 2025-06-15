@@ -62,31 +62,74 @@ total_acc, severe_acc, common_surface = get_kpis(df)
 
 # --- Streamlit App Layout ---
 
-st.title("Quebec Road Accidents Dashboard")
+# Center the title
+st.markdown("<h1 style='text-align: center;'>Quebec Road Accidents Dashboard</h1>", unsafe_allow_html=True)
 
-st.write(
+# Center the introductory text
+st.markdown(
     """
+    <div style='text-align: center;'>
     This dashboard presents various visualizations of road accidents in Quebec
     based on data related to severity, user types, weather, road surface conditions,
     lighting, and time patterns.
-    """
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
 st.markdown("---") # Add a horizontal line for visual separation
 
 st.header("Key Statistics")
 
-# Using st.columns to create a layout for the KPI cards
-col1, col2, col3 = st.columns(3)
+# Using st.markdown with custom HTML/CSS for flexbox layout and styling
+st.markdown(
+    f"""
+    <style>
+    .kpi-container {{
+        display: flex;
+        justify-content: space-around;
+        gap: 30px;
+        margin-top: 20px;
+    }}
+    .kpi-box {{
+        flex: 1;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow:0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+        color: black;
+        text-align: center;
+        font-size: 1.2em;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 120px; /* Ensure boxes have a consistent height */
+    }}
+    .kpi-box h3 {{
+        color: black;
+        margin-bottom: 5px;
+        font-size: 1.1em;
+    }}
+    .kpi-box p {{
+        font-size: 1.8em;
+        font-weight: bold;
+        margin: 0;
+    }}
+    </style>
+    <div class="kpi-container" >
+        <div class="kpi-box" > <h3 style="color: #4CAF50;">Total Accidents</h3>
+            <p >{total_acc:,}</p>
+        </div>
+        <div class="kpi-box" > <h3 style="color: #f44336;">Severe Accidents</h3>
+            <p>{severe_acc:,}</p>
+        </div>
+        <div class="kpi-box" > <h3 style="color: #2196F3;">Most Common Surface</h3>
+            <p>{common_surface}</p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-with col1:
-    st.metric(label="Total Accidents", value=f"{total_acc:,}")
-
-with col2:
-    st.metric(label="Severe Accidents", value=f"{severe_acc:,}")
-
-with col3:
-    st.metric(label="Most Common Surface", value=common_surface)
 
 st.markdown("---")
-st.info("Navigate to other pages using the sidebar on the left to explore more visualizations.")
