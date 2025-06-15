@@ -1,18 +1,27 @@
-import streamlit as st
-from dashboard import show_dashboard
-from accueil import show_accueil
-from carte import show_carte
+'''
+    Contains the server to run our application.
+'''
+from flask_failsafe import failsafe
+from app import app  # your Dash app
+application = app.server  # expose the Flask server as `application`
 
-st.set_page_config(page_title="Accidents Routiers Québec", layout="wide")
 
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Accueil", "Dashboard", "Carte"])
 
-if page == "Accueil":
-    show_accueil()
 
-elif page == "Dashboard":
-    show_dashboard()
+@failsafe
+def create_app():
+    '''
+        Gets the underlying Flask server from our Dash app.
 
-elif page == "Carte":
-    show_carte()
+        Returns:
+            The server to be run
+    '''
+    # the import is intentionally inside to work with the server failsafe
+    from app import app  # pylint: disable=import-outside-toplevel
+    application=app.server
+    return app.server
+
+
+if __name__ == "__main__":
+
+    application.run(port=8050, debug=True)

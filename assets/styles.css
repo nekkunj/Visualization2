@@ -1,0 +1,19 @@
+.kpi-card {
+    background: #FDFEFE;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 30px 40px;
+    width: 260px;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+@media (max-width: 720px) {
+    .kpi-card {
+        width: 80%;
+        margin: 0 auto;
+    }
+}
