@@ -7,3 +7,4 @@ flask_failsafe
 dash_bootstrap_components
 setuptools
 duckdb
+streamlit

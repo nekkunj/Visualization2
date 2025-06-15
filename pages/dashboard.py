@@ -1,24 +1,13 @@
 from dash import dcc, html, callback, Output, Input
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 import plotly.graph_objs as go
-import duckdb
 
 
 url = "https://raw.githubusercontent.com/nekkunj/Visualization2/9806e2c16dc395657aabbea51bd1774d9eef5567/assets/data_fusionnee_original.csv"
-
-# Run SQL query directly on remote CSV
-# query = f"""
-# SELECT *
-# FROM read_csv_auto('{url}')
-# WHERE GRAVITE = 'Grave'
-# """
-query = f"SELECT * FROM read_csv_auto('{url}')"
-df = duckdb.query(query).to_df()
-print(df.head()) 
-
 # url = 'assets/data_fusionnee.csv'
-# df = pd.read_csv(url)
+df = pd.read_csv(url)
 
 df.columns = df.columns.str.strip().str.replace('"', '')
 df = df.rename(columns=lambda x: x.strip())

@@ -1,22 +1,18 @@
-'''
-    Contains the server to run our application.
-'''
-from flask_failsafe import failsafe
-import os
+import streamlit as st
+from dashboard import show_dashboard
+from accueil import show_accueil
+from carte import show_carte
 
-@failsafe
-def create_app():
-    '''
-        Gets the underlying Flask server from our Dash app.
+st.set_page_config(page_title="Accidents Routiers Québec", layout="wide")
 
-        Returns:
-            The server to be run
-    '''
-    # the import is intentionally inside to work with the server failsafe
-    from app import app  # pylint: disable=import-outside-toplevel
-    return app.server
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Accueil", "Dashboard", "Carte"])
 
+if page == "Accueil":
+    show_accueil()
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))  # <-- use Heroku's port
-    create_app().run(host="0.0.0.0", port=port, debug=True)
+elif page == "Dashboard":
+    show_dashboard()
+
+elif page == "Carte":
+    show_carte()
