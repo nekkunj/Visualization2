@@ -83,6 +83,9 @@ def prep_data():
         df['lat'] = df['Region_Full'].map(lambda x: region_coords.get(x, (None, None))[0] if pd.notna(x) else None)
         df['lon'] = df['Region_Full'].map(lambda x: region_coords.get(x, (None, None))[1] if pd.notna(x) else None)
 
+        # Drop rows where lat/lon are NaN after mapping, as these cannot be plotted
+        df = df.dropna(subset=['lat', 'lon', 'Region'])
+
         return df
     except FileNotFoundError:
         st.error("Error: 'assets/data_fusionnee.csv' not found. Please ensure the file is in the 'assets' directory.")
@@ -91,12 +94,14 @@ def prep_data():
         st.error(f"An error occurred while loading data: {e}")
         st.stop()
 
-df = prep_data()
-
-# --- Helper Functions for Plotting (replacing map_chart, bar_chart, bar_chart_region) ---
+# --- Helper Functions for Plotting ---
 
 def prepare_region_data(data_frame):
     """Aggregates accident counts per region for the map."""
+    # Ensure region column exists and is not empty
+    if 'Region' not in data_frame.columns or data_frame['Region'].empty:
+        return pd.DataFrame()
+
     region_counts = data_frame.groupby('Region').size().reset_index(name='Accident Count')
     # Merge back with original df to get lat/lon for each region
     # Ensure region_counts has lat/lon columns, taking the first valid coordinate for each region
@@ -106,16 +111,14 @@ def prepare_region_data(data_frame):
 
 def draw_geo_map(data_frame, center_lat, center_lon, zoom):
     """Draws a choropleth-like map of Quebec regions based on accident counts."""
-    # Ensure all regions in data_frame have valid lat/lon
-    data_frame_filtered = data_frame.dropna(subset=['lat', 'lon'])
-
-    if data_frame_filtered.empty:
+    # Ensure data_frame is not empty and has required columns
+    if data_frame.empty or 'lat' not in data_frame.columns or 'lon' not in data_frame.columns or 'Accident Count' not in data_frame.columns:
         fig = go.Figure()
         fig.update_layout(title="No map data to display.", xaxis={"visible": False}, yaxis={"visible": False})
         return fig
 
     fig = px.scatter_mapbox(
-        data_frame_filtered,
+        data_frame,
         lat='lat',
         lon='lon',
         color='Accident Count', # Color by the aggregated count
@@ -146,24 +149,27 @@ def create_bar_chart(data_frame, title, type_col, granularity_col):
 
     # Define a consistent order for severity
     severity_order = ['Grave', 'Léger', 'Matériels', 'Mineurs']
-    grouped_df[type_col] = pd.Categorical(grouped_df[type_col], categories=severity_order, ordered=True)
-    grouped_df = grouped_df.sort_values(type_col)
+    # Ensure categories exist before setting categorical type to avoid errors
+    existing_severities = [s for s in severity_order if s in grouped_df[type_col].unique()]
+    if existing_severities:
+        grouped_df[type_col] = pd.Categorical(grouped_df[type_col], categories=severity_order, ordered=True)
+        grouped_df = grouped_df.sort_values(type_col)
+    else:
+        # If no known severities, proceed without ordering
+        st.warning(f"No known severities found in data for {title}. Plotting without specific severity order.")
+
 
     # Order for granularity columns if applicable
+    order_dict = None
     if granularity_col == 'month':
-        order_dict = {
-            'month': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        }
+        order_dict = {'month': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
     elif granularity_col == 'quarter_day':
-        order_dict = {
-            'quarter_day': ['Night (0-5h)', 'Morning (6-11h)', 'Afternoon (12-17h)', 'Evening (18-23h)']
-        }
-    elif granularity_col == 'JR_SEMN_ACCDN': # Corresponds to 'daytype'
-        order_dict = {
-            'JR_SEMN_ACCDN': ['Weekday', 'Weekend']
-        }
-    else:
-        order_dict = None
+        order_dict = {'quarter_day': ['Night (0-5h)', 'Morning (6-11h)', 'Afternoon (12-17h)', 'Evening (18-23h)']}
+    elif granularity_col == 'JR_SEMN_ACCDN':
+        order_dict = {'JR_SEMN_ACCDN': ['Weekday', 'Weekend']}
+    elif granularity_col == 'AN': # For Year
+        order_dict = {'AN': sorted(data_frame['AN'].unique())}
+
 
     fig = px.bar(
         grouped_df,
@@ -183,121 +189,149 @@ def create_bar_chart(data_frame, title, type_col, granularity_col):
     )
     return fig
 
-# --- Session State Initialization ---
-if 'selected_region' not in st.session_state:
-    st.session_state['selected_region'] = None
+# --- Main Streamlit App Layout Function ---
+def show_temporal_spatial_page():
+    # Load data once for the page
+    df = prep_data()
+    st.success("Data loaded and preprocessed successfully for Temporal/Spatial analysis.")
 
-# --- Main Streamlit App Layout ---
-
-st.title("Spatio-Temporal Analysis: Quebec Road Safety")
-
-st.write(
-    """
-    This interactive dashboard visualizes the spatio-temporal distribution of road accidents in Quebec.
-    Click on a region on the map to explore accident trends over time by severity for that specific region.
-    Use the time granularity selectors to zoom from annual to daily patterns.
-    The goal is to help identify high-risk zones and better understand accident dynamics.
-    """
-)
-
-st.markdown("---")
-
-# Layout using st.columns
-col_map, col_region_chart = st.columns([2, 1])
-
-with col_map:
-    st.subheader("Accidents by Region (Click on a region)")
-
-    # Prepare data for the map
-    df_map_data = prepare_region_data(df)
-    fig_map = draw_geo_map(df_map_data, center_lat=47.5, center_lon=-71.5, zoom=4.5)
-
-    # Display map and capture click events
-    # We use a unique key for the chart and capture selection
-    map_chart_selection = st.plotly_chart(
-        fig_map,
-        use_container_width=True,
-        on_select="streamlit", # Enable selection events
-        key='accident-map'
-    )
-
-    # Process map click/selection data
-    if map_chart_selection and map_chart_selection['selection'] and map_chart_selection['selection']['points']:
-        # Extract the region name from the clicked point's customdata (assuming it's the first element)
-        clicked_region_data = map_chart_selection['selection']['points'][0]['customdata']
-        # The region name from `prepare_region_data` is the 'Region' column, which is the hover_name.
-        # It's better to get it from the `point` itself if `hover_name` is set.
-        clicked_region_name = map_chart_selection['selection']['points'][0]['hovertext']
-        st.session_state['selected_region'] = clicked_region_name
-    elif map_chart_selection and not map_chart_selection['selection']:
-        # If selection is cleared (e.g., clicking off points), reset selected region
+    # --- Session State Initialization ---
+    if 'selected_region' not in st.session_state:
         st.session_state['selected_region'] = None
 
-with col_region_chart:
-    st.subheader("Accidents in Selected Region")
+    st.title("Spatio-Temporal Analysis: Quebec Road Safety")
 
-    # Time Granularity for Region Chart
-    granularity_region_selector = st.selectbox(
-        "Select Time Granularity (Region):",
-        options=[
-            {'label': 'Year', 'value': 'AN'}, # Changed to 'AN' to match column name
-            {'label': 'Month', 'value': 'month'},
-            {'label': 'Day Type (Weekday/Weekend)', 'value': 'JR_SEMN_ACCDN'}, # Changed to match column name
-            {'label': 'Quarter of Day', 'value': 'quarter_day'}
-        ],
-        format_func=lambda x: x['label'], # Display label, use value internally
-        index=0,
-        key='granularity-region-selector'
+    st.write(
+        """
+        This interactive dashboard visualizes the spatio-temporal distribution of road accidents in Quebec.
+        Click on a region on the map to explore accident trends over time by severity for that specific region.
+        Use the time granularity selectors to zoom from annual to daily patterns.
+        The goal is to help identify high-risk zones and better understand accident dynamics.
+        """
     )
-    # Extract the actual column name from the dictionary
-    granularity_region_col = granularity_region_selector['value']
 
-    if st.session_state['selected_region']:
-        st.info(f"Showing data for: **{st.session_state['selected_region']}**")
-        filtered_df_region = df[df['Region'] == st.session_state['selected_region']].copy()
-        fig_region_bar = create_bar_chart(
-            filtered_df_region,
-            f"Accidents in {st.session_state['selected_region']}",
-            'GRAVITE',
-            granularity_region_col
+    st.markdown("---")
+
+    # Layout using st.columns
+    col_map, col_region_chart = st.columns([2, 1])
+
+    with col_map:
+        st.subheader("Accidents by Region (Click on a region)")
+
+        # Prepare data for the map
+        df_map_data = prepare_region_data(df)
+        fig_map = draw_geo_map(df_map_data, center_lat=47.5, center_lon=-71.5, zoom=4.5)
+
+        # Display map and capture click events
+        # We use a unique key for the chart and capture selection
+        map_chart_selection = st.plotly_chart(
+            fig_map,
+            use_container_width=True,
+            on_select="streamlit", # Enable selection events
+            key='accident-map'
         )
-        st.plotly_chart(fig_region_bar, use_container_width=True)
-    else:
-        st.markdown(
-            """
-            <div style="padding: 10px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); height: 500px; display: flex; align-items: center; justify-content: center; text-align: center;">
-                <p style="font-size: 14px; color: #555;">Click on a region on the map to see its accident trends over time.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
+
+        # Process map click/selection data
+        # Ensure map_chart_selection is not None and has a 'selection' key and 'points' list
+        if map_chart_selection and 'selection' in map_chart_selection and map_chart_selection['selection'] and 'points' in map_chart_selection['selection'] and map_chart_selection['selection']['points']:
+            point_data = map_chart_selection['selection']['points'][0]
+            clicked_region_name = None
+
+            # Attempt to get region name from hovertext first (most reliable for px.scatter_mapbox)
+            if 'hovertext' in point_data:
+                clicked_region_name = point_data['hovertext']
+            elif 'customdata' in point_data and isinstance(point_data['customdata'], list) and point_data['customdata']:
+                # Fallback to customdata if hovertext is not available or empty
+                clicked_region_name = point_data['customdata'][0] # Assuming region name is first element
+
+            if clicked_region_name:
+                st.session_state['selected_region'] = clicked_region_name
+                st.success(f"Region clicked: {clicked_region_name}") # Debugging
+            else:
+                st.session_state['selected_region'] = None # Reset if name extraction fails
+                st.warning("Could not extract region name from map click data.") # Debugging
+        else:
+            # If no selection or selection is cleared (e.g., clicking off points)
+            if st.session_state['selected_region'] is not None:
+                st.session_state['selected_region'] = None
+                st.info("Map selection cleared.") # Debugging
+
+    with col_region_chart:
+        st.subheader("Accidents in Selected Region")
+
+        # Time Granularity for Region Chart
+        granularity_region_selector_options = [
+            {'label': 'Year', 'value': 'AN'},
+            {'label': 'Month', 'value': 'month'},
+            {'label': 'Day Type (Weekday/Weekend)', 'value': 'JR_SEMN_ACCDN'},
+            {'label': 'Quarter of Day', 'value': 'quarter_day'}
+        ]
+        granularity_region_selector = st.selectbox(
+            "Select Time Granularity (Region):",
+            options=granularity_region_selector_options,
+            format_func=lambda x: x['label'],
+            index=0,
+            key='granularity-region-selector'
         )
+        granularity_region_col = granularity_region_selector['value']
+
+        if st.session_state['selected_region']:
+            st.info(f"Showing data for: **{st.session_state['selected_region']}**")
+            filtered_df_region = df[df['Region'] == st.session_state['selected_region']].copy()
+
+            if not filtered_df_region.empty:
+                fig_region_bar = create_bar_chart(
+                    filtered_df_region,
+                    f"Accidents in {st.session_state['selected_region']} by {granularity_region_selector['label']}",
+                    'GRAVITE',
+                    granularity_region_col
+                )
+                st.plotly_chart(fig_region_bar, use_container_width=True)
+            else:
+                st.warning(f"No accident data available for {st.session_state['selected_region']} with current filters.")
+        else:
+            st.markdown(
+                """
+                <div style="padding: 10px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); height: 500px; display: flex; align-items: center; justify-content: center; text-align: center;">
+                    <p style="font-size: 14px; color: #555;">Click on a region on the map to see its accident trends over time.</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
 
-st.markdown("---")
+    st.markdown("---")
 
-st.subheader("Accidents by Time and Severity (Global)")
+    st.subheader("Accidents by Time and Severity (Global)")
 
-# Time Granularity for Global Chart
-granularity_global_selector = st.selectbox(
-    "Select Time Granularity (Global):",
-    options=[
+    # Time Granularity for Global Chart
+    granularity_global_selector_options = [
         {'label': 'Year', 'value': 'AN'},
         {'label': 'Month', 'value': 'month'},
         {'label': 'Day Type (Weekday/Weekend)', 'value': 'JR_SEMN_ACCDN'},
         {'label': 'Quarter of Day', 'value': 'quarter_day'}
-    ],
-    format_func=lambda x: x['label'], # Display label, use value internally
-    index=0,
-    key='granularity-selector'
-)
-# Extract the actual column name from the dictionary
-granularity_global_col = granularity_global_selector['value']
+    ]
+    granularity_global_selector = st.selectbox(
+        "Select Time Granularity (Global):",
+        options=granularity_global_selector_options,
+        format_func=lambda x: x['label'],
+        index=0,
+        key='granularity-selector'
+    )
+    granularity_global_col = granularity_global_selector['value']
 
-# Create and display the global bar chart
-fig_global_bar = create_bar_chart(
-    df, # Use the full dataframe for global view
-    f"Accidents by {granularity_global_selector['label']} (Global)",
-    'GRAVITE',
-    granularity_global_col
-)
-st.plotly_chart(fig_global_bar, use_container_width=True)
+    # Create and display the global bar chart
+    if not df.empty:
+        fig_global_bar = create_bar_chart(
+            df, # Use the full dataframe for global view
+            f"Accidents by {granularity_global_selector['label']} (Global)",
+            'GRAVITE',
+            granularity_global_col
+        )
+        st.plotly_chart(fig_global_bar, use_container_width=True)
+    else:
+        st.warning("No global accident data available to display charts.")
+
+# Call the function to run the Streamlit page content
+if __name__ == "__main__":
+    show_temporal_spatial_page()
