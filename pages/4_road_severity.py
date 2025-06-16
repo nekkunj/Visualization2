@@ -12,7 +12,7 @@ def load_and_clean_data():
     Loads and cleans the accident data for the Road Severity page.
     This function is cached to optimize performance, loading data only once.
     """
-    st.info("Loading and cleaning data for Road Severity page...")
+    # st.info("Loading and cleaning data for Road Severity page...")
     try:
         df = pd.read_csv('assets/data_fusionnee.csv')
         df.columns = df.columns.str.strip().str.replace('"', '').str.replace('\t', '')
@@ -36,7 +36,7 @@ def load_and_clean_data():
         if 'CD_CONFG_ROUTE' in df.columns:
             df['CD_CONFG_ROUTE'] = df['CD_CONFG_ROUTE'].astype(str).str.strip()
 
-        st.success("Data loaded and cleaned successfully.")
+        # st.success("Data loaded and cleaned successfully.")
         return df
     except FileNotFoundError:
         st.error("Error: 'assets/data_fusionnee.csv' not found. Please ensure the file is in the 'assets' directory.")
@@ -57,7 +57,7 @@ def create_sankey_chart(data_frame, chart_type='Road Category'):
     road categories/configurations to severity, with color coding.
     chart_type: 'Road Category' or 'Road Configuration'
     """
-    st.info(f"Generating Sankey chart for: {chart_type}")
+    # st.info(f"Generating Sankey chart for: {chart_type}")
 
     if data_frame.empty:
         fig = go.Figure()
@@ -185,7 +185,7 @@ def create_sankey_chart(data_frame, chart_type='Road Category'):
         width=900,
         template="plotly_white"
     )
-    st.success(f"Sankey chart '{chart_type}' figure created successfully with custom colors.")
+    # st.success(f"Sankey chart '{chart_type}' figure created successfully with custom colors.")
     return fig_sankey
 
 # --- Streamlit Layout ---
