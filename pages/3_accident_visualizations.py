@@ -14,7 +14,7 @@ def load_and_clean_data():
     preprocessed only once.
     """
     try:
-        df = pd.read_csv('data_fusionnee.csv')
+        df = pd.read_csv('assets/data_fusionnee.csv')
         # Clean column names by stripping whitespace and removing quotes
         df.columns = df.columns.str.strip().str.replace('"', '').str.replace('\t', '')
         df = df.rename(columns=lambda x: x.strip())

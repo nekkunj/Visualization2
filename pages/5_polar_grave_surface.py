@@ -13,7 +13,7 @@ def load_data():
     This function is cached to prevent re-loading data on every rerun.
     """
     try:
-        df = pd.read_csv('data_fusionnee.csv')
+        df = pd.read_csv('assets/data_fusionnee.csv')
         df['MS_ACCDN'] = pd.to_numeric(df['MS_ACCDN'], errors='coerce').astype(int) # Ensure integer type
 
         def month_to_season(month):

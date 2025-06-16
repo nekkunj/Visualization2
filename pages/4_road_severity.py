@@ -14,7 +14,7 @@ def load_and_clean_data():
     """
     st.info("Loading and cleaning data for Road Severity page...")
     try:
-        df = pd.read_csv('data_fusionnee.csv')
+        df = pd.read_csv('assets/data_fusionnee.csv')
         df.columns = df.columns.str.strip().str.replace('"', '').str.replace('\t', '')
         df = df.rename(columns=lambda x: x.strip()) # Ensure all column names are clean
 
